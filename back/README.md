@@ -5,7 +5,6 @@ This folder hosts the Flask backend serving the AI image generation endpoints.
 ## Requirements
 
 - Python 3.10+
-- Node.js (only needed if you run the combined launch script)
 
 ## Setup
 
@@ -112,4 +111,3 @@ Invoke-WebRequest http://localhost:8000/api/ai/train `
 
 - New routes live in `app/ai/` and are registered via blueprints.
 - Shared validation helpers are located in `app/utils.py`.
-- Replace the placeholder TODO sections with calls into your actual generation/training pipelines.
