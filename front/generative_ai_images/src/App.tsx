@@ -5,6 +5,9 @@ export default function App() {
   const [images, setImages] = useState({ base: null, trained: null });
   const [loading, setLoading] = useState(false);
 
+  const endpointBaseModel = "/api/generate/base";
+  const endpointTrainedModel = "/api/generate/trained";
+
   // LoRA-trained model parameters (Diffusers-compatible)
   const [trainedParams, setTrainedParams] = useState({
     negative_prompt: "",
@@ -41,12 +44,12 @@ export default function App() {
       };
 
       const [baseRes, trainedRes] = await Promise.all([
-        fetch("/api/generate/base", {
+        fetch(endpointBaseModel, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadBase),
         }),
-        fetch("/api/generate/trained", {
+        fetch(endpointTrainedModel, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadTrained),
