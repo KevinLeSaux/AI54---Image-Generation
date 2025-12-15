@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Find a Python command (python3, python, or py)
 PYTHON_CMD=""
-for c in python3 python py; do
+for c in python python3 py; do
     if command -v "$c" >/dev/null 2>&1; then
         PYTHON_CMD="$c"
         break
