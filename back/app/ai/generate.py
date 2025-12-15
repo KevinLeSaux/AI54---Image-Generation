@@ -109,7 +109,7 @@ def route_generate():
 	if payload_validator_errors:
 		return jsonify({"status": "error", "errors": payload_validator_errors}), 400
 
-	trained_flag = bool(payload.get("trained", True))
+	trained_flag = bool(payload.get("trained", False)) if "trained" in payload else False
 
 	try:
 		pipe = _load_pipeline(trained_flag)
@@ -117,8 +117,9 @@ def route_generate():
 		return jsonify({"status": "error", "message": str(exc)}), 500
 
 	generator = None
-	if isinstance(payload.get("seed"), int):
-		generator = torch.Generator(device=pipe.device).manual_seed(payload["seed"])
+	seed = payload.get("seed")
+	if isinstance(seed, int) and seed >= 0:
+		generator = torch.Generator(device=pipe.device).manual_seed(seed)
 
 	kwargs = {
 		"prompt": payload["prompt"],
@@ -132,6 +133,13 @@ def route_generate():
 
 	# Remove keys with None values to avoid diffusers complaints.
 	filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+	if trained_flag and payload.get("lora_scale") is not None:
+		try:
+			lora_scale = float(payload["lora_scale"])
+		except (TypeError, ValueError):
+			return jsonify({"status": "error", "message": "invalid lora_scale; expected a number"}), 400
+		filtered_kwargs["cross_attention_kwargs"] = {"scale": lora_scale}
 
 	try:
 		result = pipe(**filtered_kwargs)
