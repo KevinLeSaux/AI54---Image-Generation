@@ -5,8 +5,7 @@ export default function App() {
   const [images, setImages] = useState({ base: null, trained: null });
   const [loading, setLoading] = useState(false);
 
-  const endpointBaseModel = "/api/generate/base";
-  const endpointTrainedModel = "/api/generate/trained";
+  const backEndpoint = "http://127.0.0.1:8000//api/ai/generate";
 
   // LoRA-trained model parameters (Diffusers-compatible)
   const [trainedParams, setTrainedParams] = useState({
@@ -34,6 +33,7 @@ export default function App() {
 
       const payloadTrained = {
         prompt,
+        trained: true,
         negative_prompt: trainedParams.negative_prompt,
         num_inference_steps: trainedParams.steps,
         guidance_scale: trainedParams.cfg_scale,
@@ -44,12 +44,12 @@ export default function App() {
       };
 
       const [baseRes, trainedRes] = await Promise.all([
-        fetch(endpointBaseModel, {
+        fetch(backEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadBase),
         }),
-        fetch(endpointTrainedModel, {
+        fetch(backEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadTrained),
@@ -64,6 +64,7 @@ export default function App() {
         trained: trainedData.image,
       });
     } catch (err) {
+      console.error(err);
       alert("Image generation failed");
     } finally {
       setLoading(false);
