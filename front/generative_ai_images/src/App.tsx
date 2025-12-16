@@ -2,10 +2,11 @@ import { useState } from "react";
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [images, setImages] = useState({ base: null, trained: null });
+  const [images, setImages] = useState<{ base: Blob | null; trained: Blob | null }>({ base: null, trained: null });
   const [loading, setLoading] = useState(false);
 
-  const backEndpoint = "http://127.0.0.1:8000//api/ai/generate";
+  const endpointBaseModel = "/api/ai/baseModel";
+  const endpointTrainedModel = "/api/ai/trainedModel";
 
   // LoRA-trained model parameters (Diffusers-compatible)
   const [trainedParams, setTrainedParams] = useState({
@@ -33,7 +34,6 @@ export default function App() {
 
       const payloadTrained = {
         prompt,
-        trained: true,
         negative_prompt: trainedParams.negative_prompt,
         num_inference_steps: trainedParams.steps,
         guidance_scale: trainedParams.cfg_scale,
@@ -44,27 +44,26 @@ export default function App() {
       };
 
       const [baseRes, trainedRes] = await Promise.all([
-        fetch(backEndpoint, {
+        fetch(endpointBaseModel, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadBase),
         }),
-        fetch(backEndpoint, {
+        fetch(endpointTrainedModel, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadTrained),
         }),
       ]);
 
-      const baseData = await baseRes.json();
-      const trainedData = await trainedRes.json();
+      const baseBlob = await baseRes.blob();
+      const traineBlob = await trainedRes.blob();
 
       setImages({
-        base: baseData.image,
-        trained: trainedData.image,
+        base: baseBlob,
+        trained: traineBlob,
       });
     } catch (err) {
-      console.error(err);
       alert("Image generation failed");
     } finally {
       setLoading(false);
@@ -175,12 +174,12 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-slate-800/40 rounded-2xl p-4 text-center">
             <h2 className="mb-3 font-semibold">Base SD</h2>
-            {images.base ? <img title="BASESD" src={images.base} className="rounded-xl mx-auto" /> : "Waiting"}
+            {images.base ? <img title="BASESD" src={URL.createObjectURL(images.base)} className="rounded-xl mx-auto" /> : "Waiting"}
           </div>
 
           <div className="bg-slate-800/40 rounded-2xl p-4 text-center">
             <h2 className="mb-3 font-semibold">LoRA Model</h2>
-            {images.trained ? <img title="LORA MODEL" src={images.trained} className="rounded-xl mx-auto" /> : "Waiting"}
+            {images.trained ? <img title="LORA MODEL" src={URL.createObjectURL(images.trained)} className="rounded-xl mx-auto" /> : "Waiting"}
           </div>
         </div>
 
