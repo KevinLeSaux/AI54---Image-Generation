@@ -1,7 +1,15 @@
 from flask import jsonify, request, send_file
-
+from diffusers import StableDiffusionPipeline
+import torch
 from app.utils import payload_validator
 import io
+
+model_id = "runwayml/stable-diffusion-v1-5"
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16, device_map="cuda")
+pipe.enable_attention_slicing()
+print("Base model loaded and ready.")
+
+
 def route_baseModel():
 	"""
 	Generate image based on prompt.
@@ -28,12 +36,6 @@ def route_baseModel():
 	return send_file(img_io, mimetype="image/png")
 
 def async_generate_image_from_trainedModel():
-	from diffusers import StableDiffusionPipeline
-	import torch
-
-	model_id = "runwayml/stable-diffusion-v1-5"
-	pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
-	pipe = pipe.to("cuda")
 
 	# 2. Prompt for a mask
 	prompt = "Generate me a cover for an indie zombie video game. There is two zombie on the cover and something that looks like a maze"
