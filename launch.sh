@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Root paths
 BACKEND_DIR="$ROOT_DIR/back"
 FRONTEND_DIR="$ROOT_DIR/front/generative_ai_images"
-VENV_DIR="$BACKEND_DIR/venv"
+VENV_DIR="$ROOT_DIR/venv"
 
 BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
