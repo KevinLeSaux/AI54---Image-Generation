@@ -2,8 +2,8 @@
 
 from flask import Blueprint
 
-from .generate import route_baseModel
-from .train import route_trainedModel
+from .baseModel import route_baseModel
+from .trainedModel import route_trainedModel
 
 ai_bp = Blueprint("ai", __name__)
 

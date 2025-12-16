@@ -42,7 +42,4 @@ def async_generate_image_from_trainedModel():
 	print("Generating baseline image...")
 	image = pipe(prompt).images[0]
 
-	# 4. Display
-	print("Baseline Result (Expected Failure):")
-
 	return image
