@@ -1,76 +1,63 @@
-import json
-
-from flask import Response, jsonify, request, stream_with_context
+from flask import jsonify, request, send_file
 
 from app.utils import payload_validator
-
-
-def route_train():
-    """
-    Kick off a fine-tuning job using the supplied options.
-
-    param prompt: Base caption that conditions checkpoint validation renders.
-    param negative_prompt: Attributes to suppress when generating validation samples.
-    param num_inference_steps: Scheduler steps used during validation image generation.
-    param guidance_scale: Strength of classifier-free guidance for validation renders.
-    param seed: Global random seed applied for repeatable training runs.
-    param width: Width of validation previews produced throughout training.
-    param height: Height of validation previews produced throughout training.
-    param lora_scale: Scaling factor for any LoRA adapters applied during fine-tuning.
-
-    return: JSON payload describing the enqueued training job.
-    """
-
-    payload = request.get_json(silent=True) or {}
-
-    # Validate input payload
-    required_fields = {
-        "prompt": str,
-        "negative_prompt": str,
-        "num_inference_steps": int,
-        "guidance_scale": (int, float),
-        "seed": int,
-        "width": int,
-        "height": int,
-        "lora_scale": (int, float),
-    }
-
-    payload_validator_errors = payload_validator(payload, required_fields)
-    if payload_validator_errors:
-        return jsonify({"status": "error", "errors": payload_validator_errors}), 400
-
-    def format_sse(event: str, data: dict) -> str:
-        """
-        Format a server-sent event (SSE) message.
-
-        param event: The event type.
-        param data: The data payload.
-
-        return: Formatted SSE string.
-        """
-        return f"event: {event}\ndata: {json.dumps(data)}\n\n"
-
-    @stream_with_context
-    def event_stream():
-        """
-        Generator function to stream SSE messages for training progress.
-        
-        yield: Formatted SSE messages.
-        """
-        response = {key: payload[key] for key in required_fields}
-        response["status"] = "accepted"
-        yield format_sse("accepted", response)
-        # TODO: perform training here and yield progress updates via format_sse("progress", {...})
-        yield format_sse("complete", {"status": "queued"})
-
-    return Response(
-        event_stream(),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
+import io
+def route_trainedModel():
+	"""
+	Generate image based on prompt.
 	
+	return: JSON response with image generated.
+	"""
+ 
+	print("Received request to generate image from trained model.")
+ 
+	payload = request.get_json(silent=True) or {}
 
+	required_fields = {"prompt": str}
+
+	payload_validator_errors = payload_validator(payload, required_fields)
+	if payload_validator_errors:
+		return jsonify({"status": "error", "errors": payload_validator_errors}), 400
+
+	img = async_generate_image_from_trainedModel()
+	
+	img_io = io.BytesIO()
+	img.save(img_io, "PNG")
+	img_io.seek(0)
+
+	return send_file(img_io, mimetype="image/png")
+
+def async_generate_image_from_trainedModel():
+	import torch
+	from diffusers import StableDiffusionPipeline
+	from PIL import Image
+	import os
+	print(torch.cuda.is_available())
+
+	# 1. Load Base Model
+	model_id = "runwayml/stable-diffusion-v1-5"
+	pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+	pipe = pipe.to("cuda")
+
+	# 2. Load the LoRA weights
+	BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+	PROJECT_ROOT = os.path.abspath(
+		os.path.join(os.path.dirname(__file__), "../../../")
+	)
+
+	pipe.load_lora_weights(
+		os.path.join(PROJECT_ROOT, "model", "sd-indoor-segmentation-lora"),
+		weight_name="pytorch_lora_weights.safetensors"
+	)
+
+	# 3. Prompt matches the style used in training
+	prompt = "Generate me a cover for an indie zombie video game. There is two zombie on the cover and something that looks like a maze"
+
+	# 4. Generate
+	print("Generating LoRA result...")
+	image = pipe(prompt, num_inference_steps=30).images[0]
+
+	# 5. Display and Save
+	image.save("lora_final_result.png")
+	return image
