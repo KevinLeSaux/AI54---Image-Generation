@@ -6,28 +6,20 @@ import os
 from typing import Dict
 from PIL import Image
 
-model_id = "runwayml/stable-diffusion-v1-5"
 
-pipe = StableDiffusionPipeline.from_pretrained(
-    model_id,
-    torch_dtype=torch.float16,
-    device_map="cuda"
-)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../../"))
 
-pipe.load_lora_weights(
-    os.path.join(PROJECT_ROOT, "model", "sd-indoor-segmentation-lora"),
-    weight_name="pytorch_lora_weights.safetensors"
-)
 
-print("LoRA model loaded")
 
 # ---- LAZY CACHE ----
 example_cache: Dict[str, Image.Image] = {}
 
 def route_trainedModel():
+    
+
+    
     payload = request.get_json(silent=True) or {}
 
     prompt = payload.get("prompt")
@@ -57,6 +49,21 @@ def route_trainedModel():
         print("LoRA image served from cache")
         image = example_cache[cache_key]
     else:
+        
+        model_id = "runwayml/stable-diffusion-v1-5"
+
+        pipe = StableDiffusionPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16,
+            device_map="cuda"
+        )
+        pipe.load_lora_weights(
+        os.path.join(PROJECT_ROOT, "model", "sd-indoor-segmentation-lora"),
+        weight_name="pytorch_lora_weights.safetensors"
+        )
+
+        print("LoRA model loaded")
+        
         print("LoRA image generated (cache miss)")
 
         image = pipe(

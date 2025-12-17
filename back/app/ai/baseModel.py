@@ -5,21 +5,12 @@ import io
 from typing import Dict
 from PIL import Image
 
-model_id = "runwayml/stable-diffusion-v1-5"
-
-pipe = StableDiffusionPipeline.from_pretrained(
-    model_id,
-    torch_dtype=torch.float16,
-    device_map="cuda"
-)
-pipe.enable_attention_slicing()
-
-print("Base model loaded")
-
 # ---- LAZY CACHE ----
 example_cache: Dict[str, Image.Image] = {}
 
 def route_baseModel():
+    
+    
     payload = request.get_json(silent=True) or {}
 
     prompt = payload.get("prompt")
@@ -42,6 +33,18 @@ def route_baseModel():
         print("Base image served from cache")
         image = example_cache[cache_key]
     else:
+                
+        model_id = "runwayml/stable-diffusion-v1-5"
+
+        pipe = StableDiffusionPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16,
+            device_map="cuda"
+        )
+        pipe.enable_attention_slicing()
+
+        print("Base model loaded")
+        
         print("Base image generated (cache miss)")
         image = pipe(
             prompt=prompt,
@@ -56,6 +59,8 @@ def route_baseModel():
     img_io = io.BytesIO()
     image.save(img_io, "PNG")
     img_io.seek(0)
+
+    torch.cuda.empty_cache()
 
     return send_file(img_io, mimetype="image/png")
 
