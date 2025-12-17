@@ -1,73 +1,81 @@
 from flask import jsonify, request, send_file
-import torch
 from diffusers import StableDiffusionPipeline
-from PIL import Image
-import os
-from app.utils import payload_validator
+import torch
 import io
+import os
+from typing import Dict
+from PIL import Image
 
 model_id = "runwayml/stable-diffusion-v1-5"
-pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16, device_map="cuda")
 
-# 2. Load the LoRA weights
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-PROJECT_ROOT = os.path.abspath(
-	os.path.join(os.path.dirname(__file__), "../../../")
+pipe = StableDiffusionPipeline.from_pretrained(
+    model_id,
+    torch_dtype=torch.float16,
+    device_map="cuda"
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../../"))
 
 pipe.load_lora_weights(
-	os.path.join(PROJECT_ROOT, "model", "sd-indoor-segmentation-lora"),
-	weight_name="pytorch_lora_weights.safetensors"
+    os.path.join(PROJECT_ROOT, "model", "sd-indoor-segmentation-lora"),
+    weight_name="pytorch_lora_weights.safetensors"
 )
 
-print("Trained model loaded and ready.")
+print("LoRA model loaded")
 
+# ---- LAZY CACHE ----
+example_cache: Dict[str, Image.Image] = {}
 
 def route_trainedModel():
-	"""
-	Generate image based on prompt.
-	
-	return: JSON response with image generated.
-	"""
- 
-	print("Received request to generate image from trained model.")
- 
-	payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True) or {}
 
-	required_fields = {"prompt": str}
+    prompt = payload.get("prompt")
+    negative_prompt = payload.get("negative_prompt", "")
+    steps = payload.get("num_inference_steps", 30)
+    cfg_scale = payload.get("guidance_scale", 7.5)
+    seed = payload.get("seed", -1)
+    width = payload.get("width", 512)
+    height = payload.get("height", 512)
+    lora_scale = payload.get("lora_scale", 1.0)
 
-	payload_validator_errors = payload_validator(payload, required_fields)
-	if payload_validator_errors:
-		return jsonify({"status": "error", "errors": payload_validator_errors}), 400
+    if not prompt:
+        return jsonify({"error": "Prompt required"}), 400
 
-	img = async_generate_image_from_trainedModel()
-	
-	img_io = io.BytesIO()
-	img.save(img_io, "PNG")
-	img_io.seek(0)
+    # ---- Seed handling ----
+    generator = None
+    if seed != -1:
+        generator = torch.Generator(device="cuda").manual_seed(seed)
 
-	return send_file(img_io, mimetype="image/png")
+    # ---- Cache key ----
+    cache_key = (
+        f"lora::{prompt}::{negative_prompt}::{steps}::{cfg_scale}::"
+        f"{seed}::{width}::{height}::{lora_scale}"
+    )
 
-def async_generate_image_from_trainedModel():
+    if cache_key in example_cache:
+        print("LoRA image served from cache")
+        image = example_cache[cache_key]
+    else:
+        print("LoRA image generated (cache miss)")
 
-	print(torch.cuda.is_available())
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=steps,
+            guidance_scale=cfg_scale,
+            width=width,
+            height=height,
+            generator=generator,
+            cross_attention_kwargs={"scale": lora_scale},
+        ).images[0]
+
+        example_cache[cache_key] = image
+
+    img_io = io.BytesIO()
+    image.save(img_io, "PNG")
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype="image/png")
 
 
-	# 3. Prompt matches the style used in training
-	prompt = "Generate me a cover for an indie zombie video game. There is two zombie on the cover and something that looks like a maze"
-
-	# 4. Generate
-	print("Generating LoRA result...")
-	image = pipe(prompt, num_inference_steps=30).images[0]
- 
-	return image
-
-def route_test():
-	"""
-	Test endpoint to verify server is running.
-	
-	return: JSON response with status message.
-	"""
-	print("Received test request.")
-	return jsonify({"status": "success", "message": "Test endpoint is working!"}), 200

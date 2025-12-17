@@ -19,6 +19,25 @@ export default function App() {
     lora_scale: 1.0,
   });
 
+
+  const EXAMPLE = {
+    prompt:
+      "Generate me a cover for an indie zombie video game. There are two zombies on the cover and something that looks like a maze",
+    trainedParams: {
+      negative_prompt: "",
+      steps: 30,
+      cfg_scale: 7.5,
+      seed: 42,
+      width: 512,
+      height: 512,
+      lora_scale: 1.0,
+    },
+  };
+  const applyExample = () => {
+  setPrompt(EXAMPLE.prompt);
+  setTrainedParams(EXAMPLE.trainedParams);
+  };
+
   const updateParam = (key: string, value: unknown) => {
     setTrainedParams((prev) => ({ ...prev, [key]: value }));
   };
@@ -160,7 +179,12 @@ export default function App() {
               />
             </div>
           </div>
-
+            <button
+              onClick={applyExample}
+              className="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-xl"
+            >
+            Load Example (Lazy Cached)
+            </button>
           <button
             onClick={generateImages}
             disabled={loading}
