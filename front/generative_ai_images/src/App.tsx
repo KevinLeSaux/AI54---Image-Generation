@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { use, useState } from "react";
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [images, setImages] = useState<{ base: Blob | null; trained: Blob | null }>({ base: null, trained: null });
+  const [images, setImages] = useState<{ result: Blob | null }>({ result: null });
   const [loading, setLoading] = useState(false);
 
   const endpointBaseModel = "/api/ai/baseModel";
@@ -18,7 +18,8 @@ export default function App() {
     height: 512,
     lora_scale: 1.0,
   });
-
+  var endpoint = "";
+  var payload = {};
 
   const EXAMPLE = {
     prompt:
@@ -42,16 +43,24 @@ export default function App() {
     setTrainedParams((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Hanndle toggle between base and trained model
+  const [useTrainedModel, setUseTrainedModel] = useState(false);
+
   const generateImages = async () => {
     if (!prompt) return;
 
     setLoading(true);
-    setImages({ base: null, trained: null });
+    setImages({ result: null });
 
     try {
-      const payloadBase = { prompt };
 
-      const payloadTrained = {
+      if (!useTrainedModel) {
+
+      payload = { prompt };
+      endpoint = endpointBaseModel;
+      }else{
+      endpoint = endpointTrainedModel;
+      payload = {
         prompt,
         negative_prompt: trainedParams.negative_prompt,
         num_inference_steps: trainedParams.steps,
@@ -61,27 +70,22 @@ export default function App() {
         height: trainedParams.height,
         lora_scale: trainedParams.lora_scale,
       };
-
-      const [baseRes, trainedRes] = await Promise.all([
-        fetch(endpointBaseModel, {
+    }
+    const [imageResult] = await Promise.all([
+        
+        fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payloadBase),
-        }),
-        fetch(endpointTrainedModel, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payloadTrained),
+          body: JSON.stringify(payload),
         }),
       ]);
 
-      const baseBlob = await baseRes.blob();
-      const traineBlob = await trainedRes.blob();
+      const resultBlob = await imageResult.blob();
 
-      setImages({
-        base: baseBlob,
-        trained: traineBlob,
-      });
+      setImages((prev) => ({
+        ...prev,
+        result: resultBlob,
+      }));
     } catch (err) {
       alert("Image generation failed");
     } finally {
@@ -95,7 +99,7 @@ export default function App() {
 
         {/* LEFT PANEL */}
         <div className="bg-slate-800/70 backdrop-blur rounded-2xl p-6 shadow-xl space-y-5 overflow-y-auto max-h-screen">
-          <h1 className="text-3xl font-bold">LoRA Image Comparison</h1>
+          <h1 className="text-3xl font-bold">AI54 - Image Generation</h1>
 
           <textarea
             className="w-full rounded-xl bg-slate-900 border border-slate-700 p-4"
@@ -104,6 +108,34 @@ export default function App() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
+
+        {/* MODEL TOGGLE */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm">Base Model</span>
+
+          <label htmlFor="model-toggle" className="relative inline-flex items-center cursor-pointer">
+            <input
+            title="choose model"
+              id="model-toggle"
+              type="checkbox"
+              className="sr-only peer"
+              checked={useTrainedModel}
+              onChange={() => setUseTrainedModel(!useTrainedModel)}
+              defaultChecked
+            />
+            <div className="relative w-11 h-6 bg-slate-700 rounded-full peer
+                            after:content-['']
+                            after:absolute after:top-[2px] after:left-[2px]
+                            after:w-5 after:h-5
+                            after:bg-white after:rounded-full after:transition-all
+                            peer-checked:after:translate-x-full
+                            peer-checked:bg-slate-600">
+            </div>
+          </label>
+
+          <span className="text-sm">Trained Model</span>
+        </div>
+
 
           {/* TRAINED MODEL PARAMETERS */}
           <div className="space-y-4 border-t border-slate-700 pt-4">
@@ -195,15 +227,10 @@ export default function App() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="bg-slate-800/40 rounded-2xl p-4 text-center">
-            <h2 className="mb-3 font-semibold">Base SD</h2>
-            {images.base ? <img title="BASESD" src={URL.createObjectURL(images.base)} className="rounded-xl mx-auto" /> : "Waiting"}
-          </div>
-
-          <div className="bg-slate-800/40 rounded-2xl p-4 text-center">
-            <h2 className="mb-3 font-semibold">LoRA Model</h2>
-            {images.trained ? <img title="LORA MODEL" src={URL.createObjectURL(images.trained)} className="rounded-xl mx-auto" /> : "Waiting"}
+            <h2 className="mb-3 font-semibold">Result : {!useTrainedModel ? "Base SD" : "Trained Model"}</h2>
+            {images.result ? <img title="resultImage" src={URL.createObjectURL(images.result)} className="rounded-xl mx-auto" /> : "Waiting"}
           </div>
         </div>
 
