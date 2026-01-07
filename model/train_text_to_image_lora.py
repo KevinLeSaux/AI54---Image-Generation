@@ -54,6 +54,8 @@ from diffusers.utils.torch_utils import is_compiled_module
 
 if is_wandb_available():
     import wandb
+    
+wandb.init(project="sd-lora-video-game-cover", name="training-with-lower-captions")
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.35.0")
@@ -544,7 +546,7 @@ def main():
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
-            import xformers
+            import xformers #type: ignore
 
             xformers_version = version.parse(xformers.__version__)
             if xformers_version == version.parse("0.0.16"):
@@ -573,7 +575,7 @@ def main():
     # Initialize the optimizer
     if args.use_8bit_adam:
         try:
-            import bitsandbytes as bnb
+            import bitsandbytes as bnb #type: ignore
         except ImportError:
             raise ImportError(
                 "Please install bitsandbytes to use 8-bit Adam. You can do so by running `pip install bitsandbytes`"
